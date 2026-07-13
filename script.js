@@ -1,5 +1,5 @@
 ﻿const config = {
-    appsScriptUrl: "https://script.google.com/macros/s/AKfycbzDbItVHpmicQn21Bclems9s3WF0_yrq2F93kqGDQ6dIhefXeKLMO98cXn9qW9uXsXl/exec",
+    appsScriptUrl: "https://script.google.com/macros/s/AKfycbxvL4xjHe9kODFwDeiqI9B2c2MnPuzedx-K0cKWZmuUF3h9DXXVMi32T8LjsG1IRARDfw/exec",
     pdfFileName: "Questionario_Nutricional"
 };
 
