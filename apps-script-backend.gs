@@ -1,6 +1,6 @@
-﻿const SHEET_NAME = 'Respostas';
+const SHEET_NAME = 'Respostas';
 const ADMIN_ACCESS_CODE = 'rafaela2026';
-const SCRIPT_PROP_SPREADSHEET_ID = 'NUTRI_RAFAELA_SPREADSHEET_ID';
+const SCRIPT_PROP_SPREADSHEET_ID = '1RWn4k_nfhshYLUFlpyc_JKC67YY0ACIdylVmuDIOVLo';
 
 function doPost(e) {
   try {
