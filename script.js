@@ -307,7 +307,7 @@ async function handleSubmit() {
         console.error(error);
         const message = error.message === "submission-rejected"
             ? "O servidor informou uma falha ao salvar. Entre em contato com a nutricionista."
-            : "Envio sem confirmação. As respostas podem ter sido salvas. Consulte a nutricionista antes de reenviar para evitar duplicidade.";
+            : "Não conseguimos confirmar o envio após várias tentativas. Mantenha esta página aberta e clique em Enviar questionário para tentar novamente com a mesma ficha.";
         setSaveStatus(message, true);
         alert(message);
     } finally {
@@ -355,24 +355,47 @@ function getAnswer(q) {
     return ($(`#q${q.id}`)?.value || "").trim();
 }
 
+// Trecho para substituir sendToAppsScript no projeto que usa o backend
+// com submissionId e proteção contra duplicações já publicado.
 async function sendToAppsScript(payload) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-        const response = await fetch(config.appsScriptUrl, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload),
-            signal: controller.signal
-        });
-        if (!response.ok) throw new Error("submission-unconfirmed");
-        const result = await response.json();
-        if (result && result.ok === false) throw new Error("submission-rejected");
-        if (!result || result.ok !== true) throw new Error("submission-unconfirmed");
-    } finally {
-        clearTimeout(timeout);
+    if (!payload.submissionId) throw new Error('missing-submission-id');
+    // O corpo não muda entre tentativas, mesmo se o objeto original mudar.
+    const body = JSON.stringify(payload);
+    const maxAttempts = 8;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        let retry = true;
+        try {
+            setSaveStatus(`Enviando ficha — tentativa ${attempt} de ${maxAttempts}. Mantenha esta página aberta.`);
+            const response = await fetch(config.appsScriptUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body,
+                signal: controller.signal
+            });
+            if (response.ok) {
+                const result = await response.json();
+                if (result?.ok === true && result.submissionId === payload.submissionId) return;
+                if (result?.ok === false && result.error !== 'busy') {
+                    retry = false;
+                    throw new Error('submission-rejected');
+                }
+            }
+        } catch (error) {
+            if (!retry) throw error;
+            // Falha na resposta não comprova falha na gravação.
+            // Repetir o mesmo ID permite ao backend confirmar a ficha existente.
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (attempt === maxAttempts) throw new Error('submission-unconfirmed');
+        const delay = Math.min(15000, 1500 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 5000);
+        setSaveStatus('Sistema ocupado ou conexão instável. Tentaremos novamente automaticamente. Mantenha esta página aberta.');
+        await new Promise(resolve => setTimeout(resolve, delay));
     }
 }
+
 
 function saveLocalBackup(payload) {
     const key = "nutriRafaelaBackups";
