@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -69,6 +69,8 @@
                     <p class="hint">O código de acesso é validado no Apps Script.</p>
                 </form>
 
+                <div id="adminStatus" class="status-message" role="status" aria-live="polite">Digite o código para carregar as respostas.</div>
+
                 <div id="adminContent" class="hidden">
                     <div class="admin-tools">
                         <input type="search" id="searchSubmissions" placeholder="Buscar por nome, WhatsApp, e-mail, cidade ou resposta">
@@ -76,7 +78,7 @@
                         <button type="button" id="exportPdf" class="btn secondary-btn small-btn">Exportar PDF</button>
                     </div>
                     <div id="adminSummary" class="admin-summary"></div>
-                    <div id="adminStatus" class="status-message">Clique em atualizar para carregar os dados.</div>
+
                     <div id="submissionsList" class="submissions-list"></div>
                 </div>
             </div>
