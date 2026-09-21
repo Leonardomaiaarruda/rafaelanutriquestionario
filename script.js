@@ -1,5 +1,5 @@
 const config = {
-    appsScriptUrl: "https://script.google.com/macros/s/AKfycbzTOKzYRkRnRrySl0FRZmDchYun-O6SKRHWaZ3LNEgEGPGUdlqbK5_F9TDjzUi9QDPi/exec",
+    appsScriptUrl: "https://script.google.com/macros/s/AKfycbyfGbVY0-wDiasCTBE_quoo5ogIgQREpXi5r7FNSM9MfI5yedFNobi3ycgtfiTjYbSlnQ/exec",
     pdfFileName: "Questionario_Nutricional"
 };
 
@@ -295,14 +295,17 @@ async function handleSubmit() {
     try {
         lastPayload = buildPayload();
         await sendToAppsScript(lastPayload);
-        saveLocalBackup(lastPayload);
+        try { saveLocalBackup(lastPayload); } catch (backupError) { console.warn("Cópia local indisponível.", backupError); }
         $("#mainContainer").classList.add("hidden");
         $("#thankYouPage").classList.remove("hidden");
         setSaveStatus("Enviado com sucesso");
     } catch (error) {
         console.error(error);
-        setSaveStatus("Erro ao enviar", true);
-        alert("Não foi possível enviar o questionário. Verifique sua internet e tente novamente.");
+        const message = error.message === "submission-rejected"
+            ? "O servidor informou uma falha ao salvar. Entre em contato com a nutricionista."
+            : "Envio sem confirmação. As respostas podem ter sido salvas. Consulte a nutricionista antes de reenviar para evitar duplicidade.";
+        setSaveStatus(message, true);
+        alert(message);
     } finally {
         submitButton.disabled = false;
     }
@@ -341,12 +344,22 @@ function getAnswer(q) {
 }
 
 async function sendToAppsScript(payload) {
-    await fetch(config.appsScriptUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+        const response = await fetch(config.appsScriptUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        if (!response.ok) throw new Error("submission-unconfirmed");
+        const result = await response.json();
+        if (result && result.ok === false) throw new Error("submission-rejected");
+        if (!result || result.ok !== true) throw new Error("submission-unconfirmed");
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 function saveLocalBackup(payload) {
