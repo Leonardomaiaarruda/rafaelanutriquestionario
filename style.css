@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --primary-color: #23945f;
     --primary-hover: #1d7d50;
     --secondary-color: #2f6f9f;
@@ -173,6 +173,7 @@ h2 {
 
 input[type="text"],
 input[type="email"],
+input[type="tel"],
 input[type="date"],
 input[type="number"],
 input[type="password"],
