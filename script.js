@@ -103,6 +103,7 @@ const questions = [
 
 let currentQuestionIndex = 0;
 let lastPayload = null;
+let submissionInFlight = false;
 let submissions = [];
 let adminSessionCode = "";
 
@@ -282,6 +283,7 @@ function validateQuestion(index) {
 }
 
 async function handleSubmit() {
+    if (submissionInFlight) return;
     if (!questions.every((_, index) => validateQuestion(index))) {
         const firstInvalid = questions.findIndex((_, index) => !validateQuestion(index));
         showQuestion(Math.max(firstInvalid, 0));
@@ -289,11 +291,13 @@ async function handleSubmit() {
     }
 
     const submitButton = $(`#question-${questions.at(-1).id} .btn-container .btn:last-child`);
+    submissionInFlight = true;
     submitButton.disabled = true;
+    $$("#questionnaireForm input, #questionnaireForm textarea").forEach((input) => { input.disabled = true; });
     setSaveStatus("Enviando para o Apps Script...");
 
     try {
-        lastPayload = buildPayload();
+        if (!lastPayload) lastPayload = buildPayload();
         await sendToAppsScript(lastPayload);
         try { saveLocalBackup(lastPayload); } catch (backupError) { console.warn("Cópia local indisponível.", backupError); }
         $("#mainContainer").classList.add("hidden");
@@ -307,8 +311,15 @@ async function handleSubmit() {
         setSaveStatus(message, true);
         alert(message);
     } finally {
+        submissionInFlight = false;
         submitButton.disabled = false;
     }
+}
+
+function createSubmissionId() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
 function buildPayload() {
@@ -321,6 +332,7 @@ function buildPayload() {
     const whatsappQuestion = questions.find((q) => q.id === "6w");
 
     return {
+        submissionId: createSubmissionId(),
         type: "questionario_nutricional",
         submittedAt: new Date().toISOString(),
         patientName: getAnswer(questions[0]),
@@ -376,7 +388,10 @@ function setSaveStatus(message, isError = false) {
 }
 
 function resetPatientForm() {
+    if (submissionInFlight) return;
+    lastPayload = null;
     $("#questionnaireForm").reset();
+    $$("#questionnaireForm input, #questionnaireForm textarea").forEach((input) => { input.disabled = false; });
     $("#thankYouPage").classList.add("hidden");
     $("#mainContainer").classList.remove("hidden");
     setSaveStatus("Aguardando preenchimento");
@@ -618,7 +633,7 @@ function buildWhatsAppLink(value) {
 }
 function objectToAnswers(submission) {
     return Object.entries(submission)
-        .filter(([key]) => !["type", "submittedAt", "patientName", "patientEmail", "patientWhatsapp", "patientCity", "answers"].includes(key))
+        .filter(([key]) => !["submissionId", "type", "submittedAt", "patientName", "patientEmail", "patientWhatsapp", "patientCity", "answers"].includes(key))
         .map(([key, value]) => ({ question: key, answer: Array.isArray(value) ? value.join("; ") : String(value ?? "") }));
 }
 
